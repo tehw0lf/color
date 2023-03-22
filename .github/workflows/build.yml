@@ -1,0 +1,22 @@
+name: Build
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  build_and_push:
+    name: Build and push Docker image to GitHub Packages
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Login to GitHub Container Registry
+        run: echo ${{ secrets.CR_PAT }} | docker login ghcr.io -u $GITHUB_ACTOR --password-stdin
+      - name: Build Docker image
+        run: docker build . -t ghcr.io/tehw0lf/color:$GITHUB_SHA --cache-from ghcr.io/tehw0lf/color:latest
+      - name: Tag Docker image
+        run: docker tag ghcr.io/tehw0lf/color:$GITHUB_SHA ghcr.io/tehw0lf/color:latest
+      - name: Publish Docker image
+        run: docker push ghcr.io/tehw0lf/color
