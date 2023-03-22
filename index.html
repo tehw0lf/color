@@ -1,10 +1,15 @@
 <html>
   <head>
     <script type="text/javascript">
-      window.addEventListener(
-        "load",
-        () => (document.body.style.background = "#8e8e8e")
-      );
+      window.addEventListener("load", () => {
+        document.body.style.background = window.location.search.split("?")[1];
+        if (document.body.style.background === "")
+          document.body.style.background = `#${
+            window.location.search.split("?")[1]
+          }`;
+        if (document.body.style.background === "")
+          document.body.style.background = "#8e8e8e";
+      });
     </script>
   </head>
   <body></body>
