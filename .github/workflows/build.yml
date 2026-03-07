@@ -18,6 +18,5 @@ jobs:
       packages: write
       security-events: write
     with:
-      event_name: ${{ github.event_name }}
       docker_meta: '[{"name":"color","file":"Dockerfile"}]'
       platforms: "linux/arm64"
