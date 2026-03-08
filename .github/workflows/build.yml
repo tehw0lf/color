@@ -18,5 +18,6 @@ jobs:
       packages: write
       security-events: write
     with:
+      tool: npm
       docker_meta: '[{"name":"color","file":"Dockerfile"}]'
       platforms: "linux/arm64"
