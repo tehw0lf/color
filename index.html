@@ -1,16 +1,156 @@
-<html>
+<!DOCTYPE html>
+<html lang="en">
   <head>
-    <script type="text/javascript">
-      window.addEventListener("load", () => {
-        document.body.style.background = window.location.search.split("?")[1];
-        if (document.body.style.background === "")
-          document.body.style.background = `#${
-            window.location.search.split("?")[1]
-          }`;
-        if (document.body.style.background === "")
-          document.body.style.background = "#8e8e8e";
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>color</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+
+      body {
+        width: 100vw;
+        height: 100vh;
+        background: #8e8e8e;
+        transition: background 0.3s;
+      }
+
+      #overlay {
+        position: fixed;
+        bottom: 1rem;
+        right: 1rem;
+        padding: 0.5rem 0.75rem;
+        border-radius: 6px;
+        font-family: 'Inter', Arial, sans-serif;
+        font-size: 0.75rem;
+        line-height: 1.6;
+        background: rgba(0, 0, 0, 0.15);
+        backdrop-filter: blur(4px);
+        color: #fff;
+        user-select: all;
+      }
+
+      #overlay.dark-text {
+        background: rgba(255, 255, 255, 0.25);
+        color: #000;
+      }
+
+      #overlay div { white-space: nowrap; }
+    </style>
+  </head>
+  <body>
+    <div id="overlay">
+      <div id="val-hex">—</div>
+      <div id="val-rgb">—</div>
+      <div id="val-cmyk">—</div>
+    </div>
+    <script>
+      function cmykToRgb(c, m, y, k) {
+        const r = Math.round(255 * (1 - c / 100) * (1 - k / 100));
+        const g = Math.round(255 * (1 - m / 100) * (1 - k / 100));
+        const b = Math.round(255 * (1 - y / 100) * (1 - k / 100));
+        return { r, g, b };
+      }
+
+      function rgbToHex(r, g, b) {
+        return '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('');
+      }
+
+      function rgbToCmyk(r, g, b) {
+        const rn = r / 255, gn = g / 255, bn = b / 255;
+        const k = 1 - Math.max(rn, gn, bn);
+        if (k === 1) return { c: 0, m: 0, y: 0, k: 100 };
+        const c = (1 - rn - k) / (1 - k);
+        const m = (1 - gn - k) / (1 - k);
+        const y = (1 - bn - k) / (1 - k);
+        return {
+          c: Math.round(c * 100),
+          m: Math.round(m * 100),
+          y: Math.round(y * 100),
+          k: Math.round(k * 100)
+        };
+      }
+
+      function luminance(r, g, b) {
+        return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+      }
+
+      function hexToRgb(hex) {
+        const clean = hex.replace('#', '');
+        const full = clean.length === 3
+          ? clean.split('').map(c => c + c).join('')
+          : clean;
+        const num = parseInt(full, 16);
+        return {
+          r: (num >> 16) & 255,
+          g: (num >> 8) & 255,
+          b: num & 255
+        };
+      }
+
+      function resolveColorToRgb(raw) {
+        // Try CMYK
+        const cmykMatch = raw.match(/^cmyk\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)$/i);
+        if (cmykMatch) {
+          const [, c, m, y, k] = cmykMatch.map(Number);
+          return { rgb: cmykToRgb(c, m, y, k), sourceCmyk: { c, m, y, k } };
+        }
+
+        // Try as CSS color via canvas
+        const canvas = document.createElement('canvas');
+        canvas.width = canvas.height = 1;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#8e8e8e'; // reset
+        ctx.fillStyle = raw;
+        // If the browser couldn't parse it, fillStyle stays as the reset value
+        const computed = ctx.fillStyle;
+        if (computed === '#8e8e8e' && raw.toLowerCase() !== '#8e8e8e' && raw.toLowerCase() !== '8e8e8e') {
+          return null;
+        }
+        ctx.fillRect(0, 0, 1, 1);
+        const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
+        return { rgb: { r, g, b }, sourceCmyk: null };
+      }
+
+      function applyColor(raw) {
+        if (!raw) {
+          applyRgb({ r: 142, g: 142, b: 142 }, null);
+          return;
+        }
+
+        const result = resolveColorToRgb(raw);
+        if (!result) {
+          applyRgb({ r: 142, g: 142, b: 142 }, null);
+          return;
+        }
+        applyRgb(result.rgb, result.sourceCmyk);
+      }
+
+      function applyRgb({ r, g, b }, sourceCmyk) {
+        const hex = rgbToHex(r, g, b);
+        document.body.style.background = hex;
+
+        const cmyk = sourceCmyk ?? rgbToCmyk(r, g, b);
+        document.getElementById('val-hex').textContent = `HEX  ${hex}`;
+        document.getElementById('val-rgb').textContent = `RGB  ${r}, ${g}, ${b}`;
+        document.getElementById('val-cmyk').textContent =
+          `CMYK ${cmyk.c}, ${cmyk.m}, ${cmyk.y}, ${cmyk.k}`;
+
+        const overlay = document.getElementById('overlay');
+        overlay.classList.toggle('dark-text', luminance(r, g, b) > 0.5);
+      }
+
+      // ── INIT ────────────────────────────────────────────────────────────────
+      window.addEventListener('load', () => {
+        const param = window.location.search.slice(1);
+        applyColor(decodeURIComponent(param));
+      });
+
+      // ── postMessage theme sync ───────────────────────────────────────────────
+      window.addEventListener('message', (e) => {
+        if (e.data?.type === 'color') {
+          applyColor(decodeURIComponent(e.data.color));
+        }
       });
     </script>
-  </head>
-  <body></body>
+  </body>
 </html>
