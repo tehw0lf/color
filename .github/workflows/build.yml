@@ -17,6 +17,7 @@ jobs:
       contents: write
       packages: write
       security-events: write
+      pull-requests: write
     with:
       tool: npm
       docker_meta: '[{"name":"color","file":"Dockerfile"}]'
