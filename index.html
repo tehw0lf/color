@@ -91,8 +91,12 @@
       }
 
       function resolveColorToRgb(raw) {
-        // Try CMYK
-        const cmykMatch = raw.match(/^cmyk\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)$/i);
+        // CMYK is not a CSS colour type, so we parse it ourselves. Print
+        // workflows quote percentages with decimals, so accept them.
+        const NUM = String.raw`\d+(?:\.\d+)?`;
+        const cmykRe = new RegExp(
+          `^cmyk\\(\\s*(${NUM})\\s*,\\s*(${NUM})\\s*,\\s*(${NUM})\\s*,\\s*(${NUM})\\s*\\)$`, 'i');
+        const cmykMatch = raw.match(cmykRe);
         if (cmykMatch) {
           const [, c, m, y, k] = cmykMatch.map(Number);
           return { rgb: cmykToRgb(c, m, y, k), sourceCmyk: { c, m, y, k } };
