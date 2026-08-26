@@ -58,6 +58,13 @@
         return '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('');
       }
 
+      // One decimal is enough to survive the round trip back to the same
+      // 8-bit channel; integers lose up to 2 per channel. Trailing .0 is
+      // dropped so whole percentages stay readable.
+      function pct(v) {
+        return Number((v * 100).toFixed(1));
+      }
+
       function rgbToCmyk(r, g, b) {
         const rn = r / 255, gn = g / 255, bn = b / 255;
         const k = 1 - Math.max(rn, gn, bn);
@@ -66,10 +73,10 @@
         const m = (1 - gn - k) / (1 - k);
         const y = (1 - bn - k) / (1 - k);
         return {
-          c: Math.round(c * 100),
-          m: Math.round(m * 100),
-          y: Math.round(y * 100),
-          k: Math.round(k * 100)
+          c: pct(c),
+          m: pct(m),
+          y: pct(y),
+          k: pct(k)
         };
       }
 
