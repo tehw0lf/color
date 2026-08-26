@@ -84,19 +84,6 @@
         return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
       }
 
-      function hexToRgb(hex) {
-        const clean = hex.replace('#', '');
-        const full = clean.length === 3
-          ? clean.split('').map(c => c + c).join('')
-          : clean;
-        const num = parseInt(full, 16);
-        return {
-          r: (num >> 16) & 255,
-          g: (num >> 8) & 255,
-          b: num & 255
-        };
-      }
-
       function resolveColorToRgb(raw) {
         // CMYK is not a CSS colour type, so we parse it ourselves. Print
         // workflows quote percentages with decimals, so accept them.
@@ -109,20 +96,30 @@
           return { rgb: cmykToRgb(c, m, y, k), sourceCmyk: { c, m, y, k } };
         }
 
-        // Try as CSS color via canvas
+        // Try as a CSS colour via canvas. A bare hex like "8e8e8e" is not a
+        // CSS colour, so retry it with a leading # — that is the form the
+        // README documents and the one people paste from a colour picker.
+        const rgb = parseCssColor(raw) ?? (/^[0-9a-f]{3,8}$/i.test(raw) ? parseCssColor('#' + raw) : null);
+        if (!rgb) return null;
+        return { rgb, sourceCmyk: null };
+      }
+
+      function parseCssColor(value) {
         const canvas = document.createElement('canvas');
         canvas.width = canvas.height = 1;
         const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#8e8e8e'; // reset
-        ctx.fillStyle = raw;
-        // If the browser couldn't parse it, fillStyle stays as the reset value
-        const computed = ctx.fillStyle;
-        if (computed === '#8e8e8e' && raw.toLowerCase() !== '#8e8e8e' && raw.toLowerCase() !== '8e8e8e') {
-          return null;
-        }
+        // Assigning an invalid colour leaves fillStyle untouched, so probe
+        // twice from different starting points: only an unparsed value keeps
+        // both. A single sentinel would misread that exact colour as invalid.
+        ctx.fillStyle = '#010203';
+        ctx.fillStyle = value;
+        const first = ctx.fillStyle;
+        ctx.fillStyle = '#040506';
+        ctx.fillStyle = value;
+        if (first === '#010203' && ctx.fillStyle === '#040506') return null;
         ctx.fillRect(0, 0, 1, 1);
         const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
-        return { rgb: { r, g, b }, sourceCmyk: null };
+        return { r, g, b };
       }
 
       function applyColor(raw) {
