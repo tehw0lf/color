@@ -16,6 +16,7 @@ Rules suppressed in `.zap/rules.tsv` with justification:
 
 | Rule ID | Name | Handling |
 |---------|------|----------|
+| 10009 | In Page Banner Information Leak | Fixed at the source instead of suppressed. nginx's stock 404 page printed `nginx/<version>` in the response body. `server_tokens off` plus a custom `404.html` removes both the version and the product name. |
 | 10027 | Information Disclosure - Suspicious Comments | Fixed at the source instead of suppressed. ZAP matches a keyword list (`from`, `user`, `select`, `todo`, …) against comments, so plain English wording can trip it. The comments in `index.html` were reworded rather than the rule silenced, keeping 10027 active for genuine leaks. |
 
 ## Why findings were reported three times
@@ -29,3 +30,15 @@ This page has no client-side router (it only reads `location.search`), so the
 fallback served no purpose. It is now `try_files $uri $uri/ =404`: real files are
 served, everything else 404s, and security headers still apply to the 404
 response because they are declared with `always`.
+
+## Where the 10009 banner leak came from
+
+Removing the SPA fallback (see above) was correct, but it changed what nginx
+serves for an unmatched path: instead of `index.html`, the stock error page,
+whose body reads `nginx/<version>`. ZAP flagged that on `/sitemap.xml` as an
+In Page Banner Information Leak.
+
+`server_tokens off` drops the version from error pages and the `Server` header;
+the custom `404.html` removes the product name from the body entirely. The 404
+page is served via `error_page` behind an `internal` location, so `/404.html`
+itself still returns 404 rather than becoming a real page for ZAP to scan.
