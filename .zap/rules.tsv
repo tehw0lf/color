@@ -1,5 +1,5 @@
 10035	IGNORE	HSTS not set — handled by Cloudflare at TLS termination, not nginx
-10055	IGNORE	CSP style-src unsafe-inline required by framework; form-action and base-uri are explicitly set
+10055	IGNORE	CSP style-src unsafe-inline needed for the single inline <style> block; form-action and base-uri are explicitly set
 10109	IGNORE	Modern Web Application — informational only, not a vulnerability
 10015	IGNORE	Cache-control directives — informational only, not a vulnerability
 10049	IGNORE	Storable and Cacheable Content — informational only, not a vulnerability

@@ -98,7 +98,7 @@
 
         // Try as a CSS colour via canvas. A bare hex like "8e8e8e" is not a
         // CSS colour, so retry it with a leading # — that is the form the
-        // README documents and the one people paste from a colour picker.
+        // README documents and the one a colour picker hands you.
         const rgb = parseCssColor(raw) ?? (/^[0-9a-f]{3,8}$/i.test(raw) ? parseCssColor('#' + raw) : null);
         if (!rgb) return null;
         return { rgb, sourceCmyk: null };
@@ -109,7 +109,7 @@
         canvas.width = canvas.height = 1;
         const ctx = canvas.getContext('2d');
         // Assigning an invalid colour leaves fillStyle untouched, so probe
-        // twice from different starting points: only an unparsed value keeps
+        // twice using two different starting points: only an unparsed value keeps
         // both. A single sentinel would misread that exact colour as invalid.
         ctx.fillStyle = '#010203';
         ctx.fillStyle = value;

@@ -1,0 +1,54 @@
+name: csp hash check
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  csp-hash:
+    name: verify CSP script hashes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Check every inline script is allowed by the CSP
+        run: |
+          python3 - <<'PY'
+          import base64, hashlib, re, sys
+
+          html = open("index.html", encoding="utf-8").read()
+          csp = open("security-headers.conf", encoding="utf-8").read()
+
+          scripts = [
+              m.group(1)
+              for m in re.finditer(
+                  r"<script(?![^>]*\ssrc=)[^>]*>(.*?)</script>", html, re.S
+              )
+          ]
+          if not scripts:
+              sys.exit("No inline scripts found in index.html — check the parser.")
+
+          missing = []
+          for body in scripts:
+              digest = base64.b64encode(hashlib.sha256(body.encode()).digest()).decode()
+              h = f"sha256-{digest}"
+              if h in csp:
+                  print(f"ok       {h}")
+              else:
+                  print(f"MISSING  {h}")
+                  missing.append(h)
+
+          if missing:
+              sys.exit(
+                  "\nCSP is stale: security-headers.conf does not allow "
+                  f"{len(missing)} inline script(s) in index.html.\n"
+                  "The browser will block them. Update script-src with the hash(es) above."
+              )
+
+          print(f"\nAll {len(scripts)} inline script(s) allowed by the CSP.")
+          PY
