@@ -1,5 +1,10 @@
 # ZAP DAST Ignore Rules
 
+> **Handling the DAST issue:** the ZAP action owns the lifecycle of its report
+> issue — it appends each scan as a comment and closes the issue itself once a
+> scan is clean. Never close it by hand or via `Closes #N` in a merge message;
+> see [CLAUDE.md](../CLAUDE.md) for why and what to do instead.
+
 Rules suppressed in `.zap/rules.tsv` with justification:
 
 | Rule ID | Name | Reason |
