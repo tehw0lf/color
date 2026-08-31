@@ -19,9 +19,8 @@ jobs:
       - name: Check every inline script is allowed by the CSP
         run: |
           python3 - <<'PY'
-          import base64, hashlib, re, sys
+          import base64, hashlib, pathlib, re, sys
 
-          html = open("index.html", encoding="utf-8").read()
           csp = open("security-headers.conf", encoding="utf-8").read()
 
           # Scope the match to script-src. A hash appearing anywhere else in the
@@ -32,32 +31,51 @@ jobs:
               sys.exit("security-headers.conf has no script-src directive.")
           script_src = directive.group(1)
 
-          scripts = [
-              m.group(1)
-              for m in re.finditer(
-                  r"<script(?![^>]*\ssrc=)[^>]*>(.*?)</script>", html, re.S
-              )
-          ]
-          if not scripts:
-              sys.exit("No inline scripts found in index.html — check the parser.")
+          # Every served page, not just index.html: a page added later with an
+          # inline script would otherwise ship blocked and fail silently.
+          pages = sorted(pathlib.Path(".").glob("*.html"))
+          if not pages:
+              sys.exit("No .html files found — check the glob.")
 
           missing = []
-          for body in scripts:
-              digest = base64.b64encode(hashlib.sha256(body.encode()).digest()).decode()
-              h = f"sha256-{digest}"
-              # Quoted, so a bare substring elsewhere in the directive cannot match.
-              if f"'{h}'" in script_src:
-                  print(f"ok       {h}")
-              else:
-                  print(f"MISSING  {h}")
-                  missing.append(h)
+          total = 0
+          for page in pages:
+              html = page.read_text(encoding="utf-8")
+              # \bsrc\s*= tolerates the attribute forms HTML actually allows
+              # (SRC=, src = , src\t=, single/unquoted values). Matching only
+              # "src=" would treat an external script as inline and demand a
+              # hash for content the browser never inlines. re.I for the tag
+              # and attribute name; \b so data-srcset is not mistaken for src.
+              scripts = [
+                  m.group(1)
+                  for m in re.finditer(
+                      r"<script\b(?![^>]*\bsrc\s*=)[^>]*>(.*?)</script>",
+                      html,
+                      re.S | re.I,
+                  )
+              ]
+              if not scripts:
+                  print(f"--       {page}: no inline scripts")
+                  continue
+              for body in scripts:
+                  total += 1
+                  digest = base64.b64encode(
+                      hashlib.sha256(body.encode()).digest()
+                  ).decode()
+                  h = f"sha256-{digest}"
+                  # Quoted, so a bare substring elsewhere cannot match.
+                  if f"'{h}'" in script_src:
+                      print(f"ok       {page}: {h}")
+                  else:
+                      print(f"MISSING  {page}: {h}")
+                      missing.append((page, h))
 
           if missing:
               sys.exit(
-                  "\nCSP is stale: script-src does not allow "
-                  f"{len(missing)} inline script(s) in index.html.\n"
-                  "The browser will block them. Update script-src with the hash(es) above."
+                  f"\nCSP is stale: script-src does not allow {len(missing)} "
+                  "inline script(s).\nThe browser will block them. "
+                  "Update script-src with the hash(es) above."
               )
 
-          print(f"\nAll {len(scripts)} inline script(s) allowed by script-src.")
+          print(f"\nAll {total} inline script(s) across {len(pages)} page(s) allowed by script-src.")
           PY
