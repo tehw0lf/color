@@ -1,0 +1,63 @@
+name: csp hash check
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  csp-hash:
+    name: verify CSP script hashes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      - name: Check every inline script is allowed by the CSP
+        run: |
+          python3 - <<'PY'
+          import base64, hashlib, re, sys
+
+          html = open("index.html", encoding="utf-8").read()
+          csp = open("security-headers.conf", encoding="utf-8").read()
+
+          # Scope the match to script-src. A hash appearing anywhere else in the
+          # file (style-src, a comment) does not permit the script, so matching
+          # against the whole file would pass while the browser blocks it.
+          directive = re.search(r"\bscript-src\s+([^;\"]+)", csp)
+          if directive is None:
+              sys.exit("security-headers.conf has no script-src directive.")
+          script_src = directive.group(1)
+
+          scripts = [
+              m.group(1)
+              for m in re.finditer(
+                  r"<script(?![^>]*\ssrc=)[^>]*>(.*?)</script>", html, re.S
+              )
+          ]
+          if not scripts:
+              sys.exit("No inline scripts found in index.html — check the parser.")
+
+          missing = []
+          for body in scripts:
+              digest = base64.b64encode(hashlib.sha256(body.encode()).digest()).decode()
+              h = f"sha256-{digest}"
+              # Quoted, so a bare substring elsewhere in the directive cannot match.
+              if f"'{h}'" in script_src:
+                  print(f"ok       {h}")
+              else:
+                  print(f"MISSING  {h}")
+                  missing.append(h)
+
+          if missing:
+              sys.exit(
+                  "\nCSP is stale: script-src does not allow "
+                  f"{len(missing)} inline script(s) in index.html.\n"
+                  "The browser will block them. Update script-src with the hash(es) above."
+              )
+
+          print(f"\nAll {len(scripts)} inline script(s) allowed by script-src.")
+          PY
