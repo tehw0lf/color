@@ -41,10 +41,17 @@ jobs:
           total = 0
           for page in pages:
               html = page.read_text(encoding="utf-8")
+              # \bsrc\s*= tolerates the attribute forms HTML actually allows
+              # (SRC=, src = , src\t=, single/unquoted values). Matching only
+              # "src=" would treat an external script as inline and demand a
+              # hash for content the browser never inlines. re.I for the tag
+              # and attribute name; \b so data-srcset is not mistaken for src.
               scripts = [
                   m.group(1)
                   for m in re.finditer(
-                      r"<script(?![^>]*\ssrc=)[^>]*>(.*?)</script>", html, re.S
+                      r"<script\b(?![^>]*\bsrc\s*=)[^>]*>(.*?)</script>",
+                      html,
+                      re.S | re.I,
                   )
               ]
               if not scripts:
