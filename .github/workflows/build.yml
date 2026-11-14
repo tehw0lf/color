@@ -18,6 +18,7 @@ jobs:
       packages: write
       security-events: write
       pull-requests: write
+      issues: write
     with:
       tool: npm
       docker_meta: '[{"name":"color","file":"Dockerfile"}]'
